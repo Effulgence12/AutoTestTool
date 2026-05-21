@@ -1,0 +1,13 @@
+.env
+.conda/
+.conda_pkgs/
+.pip_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.streamlit/
+*.xlsx
+*.csv
+*.zip
+autotestdesign_artifact.json

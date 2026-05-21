@@ -1,0 +1,99 @@
+Target application: {target_app}
+Target module or feature: {target_module}
+
+Raw requirements:
+{requirements_text}
+
+Generate one complete AutoTestDesign JSON object with exactly these top-level keys:
+project, requirements, risks, coverage_items, strategies, test_cases, traceability, white_box_model, optimization_summary, result_analysis.
+
+Required schema:
+{{
+  "project": {{
+    "target_app": "...",
+    "target_module": "...",
+    "concept": "short testing concept and objective",
+    "prompt_design_notes": "how this prompt maps requirements to coverage and tests"
+  }},
+  "requirements": [
+    {{
+      "requirement_id": "REQ-001",
+      "raw_text": "...",
+      "input_fields": "...",
+      "data_ranges": "...",
+      "conditions": "...",
+      "expected_actions": "..."
+    }}
+  ],
+  "risks": [
+    {{
+      "requirement_id": "REQ-001",
+      "risk_score": "0-100",
+      "priority": "High|Medium|Low",
+      "reason": "risk rationale"
+    }}
+  ],
+  "coverage_items": [
+    {{
+      "coverage_item_id": "CI-001",
+      "requirement_id": "REQ-001",
+      "coverage_item": "specific input domain, condition, rule, state, transition, or decision",
+      "type": "Input Field|Data Range|Condition|Expected Action|State|Transition|Decision",
+      "rationale": "why this item should be covered"
+    }}
+  ],
+  "strategies": [
+    {{
+      "strategy_id": "ST-001",
+      "coverage_item_id": "CI-001",
+      "technique": "Equivalence Partitioning|Boundary Value Analysis|Decision Table|State Transition|White-box Coverage",
+      "method": "specific coverage method",
+      "rationale": "why this technique is appropriate"
+    }}
+  ],
+  "test_cases": [
+    {{
+      "test_case_id": "TC-001",
+      "requirement_id": "REQ-001",
+      "strategy_id": "ST-001",
+      "technique": "Equivalence Partitioning|Boundary Value Analysis|Decision Table|State Transition|White-box Coverage",
+      "test_data": "concrete test data",
+      "steps": "clear test steps",
+      "expected_result": "test oracle / expected result",
+      "priority": "High|Medium|Low",
+      "risk_score": "0-100"
+    }}
+  ],
+  "traceability": [
+    {{
+      "requirement_id": "REQ-001",
+      "coverage_item_id": "CI-001",
+      "strategy_id": "ST-001",
+      "test_case_id": "TC-001"
+    }}
+  ],
+  "white_box_model": [
+    {{
+      "model_type": "State Transition|Control Flow|Decision Flow",
+      "model_description": "states/branches/transitions for the selected module",
+      "coverage_criterion": "All States|All Transitions|Branch Coverage|Statement Coverage",
+      "optimal_sequence": "recommended sequence",
+      "rationale": "why this sequence improves structural coverage"
+    }}
+  ],
+  "optimization_summary": "how test cases are prioritized or minimized using risk and coverage efficiency",
+  "result_analysis": "mapping summary from designed test cases to coverage items and strategies, plus gaps to review"
+}}
+
+Rules:
+- Every requirement_id in requirements must have exactly one matching risk row.
+- Every requirement_id must have at least one coverage item.
+- Every coverage_item_id must have at least one matching strategy row.
+- Every strategy_id must have at least one matching test case.
+- Include at least three black-box techniques: Equivalence Partitioning, Boundary Value Analysis, and Decision Table.
+- Include at least one lightweight white-box or state/control-flow modeling item.
+- Generate enough rows to demonstrate usefulness, but keep the output concise: total test_cases should be between 6 and 10.
+- Prefer one risk row per requirement, one or two coverage items per requirement, and compact step text.
+- Assign higher priority to high-risk requirements.
+- Make every test case traceable through requirement_id, coverage_item_id, strategy_id, and test_case_id.
+- Return JSON only.

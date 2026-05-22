@@ -18,10 +18,10 @@
 ## 安装
 
 ```powershell
-cd E:\code\ST\ST_final\AutoTestTool
+cd .\AutoTestTool
 conda create <虚拟环境名> -y python=3.11 pip
 conda activate <虚拟环境名>
-python pip install requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## 配置
@@ -46,7 +46,7 @@ QWEN_ENABLE_THINKING=0
 ## 运行
 
 ```powershell
-conda activate E:\code\ST\ST_final\AutoTestTool\.conda
+conda activate <虚拟环境名>
 python -m streamlit run app.py
 ```
 

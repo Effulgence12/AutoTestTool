@@ -145,7 +145,7 @@ def render_editors() -> None:
             edited = st.data_editor(
                 dataframe_for(result, key, columns),
                 num_rows="dynamic",
-                use_container_width=True,
+                width='stretch',
                 key=f"editor_{key}",
             )
             apply_table_edit(result, key, edited)
@@ -154,7 +154,7 @@ def render_editors() -> None:
         edited_model = st.data_editor(
             pd.DataFrame(result.get("white_box_model", []), columns=MODEL_COLUMNS).fillna(""),
             num_rows="dynamic",
-            use_container_width=True,
+            width='stretch',
             key="editor_white_box_model",
         )
         result["white_box_model"] = edited_model.fillna("").astype(str).to_dict(
@@ -166,9 +166,9 @@ def render_generation_controls(target_app: str, target_module: str, requirements
     st.subheader("生成区")
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
-        generate_clicked = st.button("生成测试设计", type="primary", use_container_width=True)
+        generate_clicked = st.button("生成测试设计", type="primary", width='stretch')
     with col2:
-        smoke_clicked = st.button("验证 Qwen 配置", use_container_width=True)
+        smoke_clicked = st.button("验证 Qwen 配置", width='stretch')
     with col3:
         try:
             st.info(f"当前模型：{model_name()}")
@@ -301,7 +301,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_json_bytes(current),
             file_name="autotestdesign_artifact.json",
             mime="application/json",
-            use_container_width=True,
+            width='stretch',
             disabled=has_blocking_issues,
         )
     with col2:
@@ -310,7 +310,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_csv_zip_bytes(current),
             file_name="autotestdesign_csv.zip",
             mime="application/zip",
-            use_container_width=True,
+            width='stretch',
             disabled=has_blocking_issues,
         )
     with col3:
@@ -319,7 +319,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_excel_bytes(current),
             file_name="autotestdesign_artifact.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
+            width='stretch',
             disabled=has_blocking_issues,
         )
 
@@ -362,7 +362,7 @@ def main() -> None:
         evidence_df = pd.DataFrame(evidence)
         edited_evidence = st.data_editor(
             evidence_df,
-            use_container_width=True,
+            width='stretch',
             num_rows="fixed",
             disabled=[
                 "evidence_key",

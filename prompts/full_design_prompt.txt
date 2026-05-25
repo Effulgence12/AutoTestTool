@@ -86,6 +86,9 @@ Required schema:
 }}
 
 Rules:
+- If the raw requirements include CSV content with req_id, requirement_id, or id columns, treat each CSV data row as exactly one requirement.
+- Preserve each CSV row ID exactly as requirement_id. Do not merge, split, omit, or renumber CSV rows.
+- The number of generated requirements for CSV input must match the number of CSV data rows, unless additional plain-text requirements are also provided.
 - Every requirement_id in requirements must have exactly one matching risk row.
 - Every requirement_id must have at least one coverage item.
 - Every coverage_item_id must have at least one matching strategy row.

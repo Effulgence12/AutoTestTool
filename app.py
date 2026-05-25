@@ -42,17 +42,53 @@ def init_state() -> None:
             st.session_state[key] = value
 
 
-def uploaded_text(files: list[Any]) -> str:
+def csv_requirement_ids(df: pd.DataFrame) -> list[str]:
+    normalized_columns = {str(column).strip().lower(): column for column in df.columns}
+    id_column = None
+    for candidate in ["req_id", "requirement_id", "id"]:
+        if candidate in normalized_columns:
+            id_column = normalized_columns[candidate]
+            break
+    if id_column is None:
+        return []
+    return [
+        str(value).strip()
+        for value in df[id_column].fillna("").tolist()
+        if str(value).strip()
+    ]
+
+
+def csv_prompt_block(file_name: str, df: pd.DataFrame, requirement_ids: list[str]) -> str:
+    csv_text = df.to_csv(index=False)
+    if not requirement_ids:
+        return csv_text
+    return (
+        f"CSV file: {file_name}\n"
+        f"CSV requirement row count: {len(df)}\n"
+        "Required requirement_id values, one per CSV data row: "
+        + ", ".join(requirement_ids)
+        + "\n"
+        "CSV parsing rule: each listed requirement_id must appear exactly once in the "
+        "requirements array. Preserve these IDs exactly; do not merge, split, omit, "
+        "or renumber CSV rows.\n"
+        + csv_text
+    )
+
+
+def uploaded_text(files: list[Any]) -> tuple[str, list[str]]:
     parts: list[str] = []
+    expected_requirement_ids: list[str] = []
     for file in files:
         name = file.name.lower()
         data = file.getvalue()
         if name.endswith(".csv"):
             df = pd.read_csv(io.BytesIO(data))
-            parts.append(df.to_csv(index=False))
+            requirement_ids = csv_requirement_ids(df)
+            expected_requirement_ids.extend(requirement_ids)
+            parts.append(csv_prompt_block(file.name, df, requirement_ids))
         else:
             parts.append(data.decode("utf-8", errors="replace"))
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), expected_requirement_ids
 
 
 def dataframe_for(result: dict[str, Any], key: str, columns: list[str]) -> pd.DataFrame:
@@ -162,7 +198,12 @@ def render_editors() -> None:
         )
 
 
-def render_generation_controls(target_app: str, target_module: str, requirements: str) -> None:
+def render_generation_controls(
+    target_app: str,
+    target_module: str,
+    requirements: str,
+    expected_requirement_ids: list[str] | None = None,
+) -> None:
     st.subheader("生成区")
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
@@ -192,7 +233,12 @@ def render_generation_controls(target_app: str, target_module: str, requirements
             st.error("请先输入或上传目标应用需求。")
             return
         try:
-            result, elapsed, prompt = generate_design(target_app, target_module, requirements)
+            result, elapsed, prompt = generate_design(
+                target_app,
+                target_module,
+                requirements,
+                expected_requirement_ids=expected_requirement_ids,
+            )
             st.session_state.result = result
             st.session_state.original_result = copy.deepcopy(result)
             st.session_state.last_prompt = prompt
@@ -346,10 +392,15 @@ def main() -> None:
         type=["txt", "csv"],
         accept_multiple_files=True,
     )
-    file_text = uploaded_text(files) if files else ""
+    file_text, expected_requirement_ids = uploaded_text(files) if files else ("", [])
     requirements = "\n\n".join(part for part in [typed_requirements, file_text] if part)
 
-    render_generation_controls(target_app, target_module, requirements)
+    render_generation_controls(
+        target_app,
+        target_module,
+        requirements,
+        expected_requirement_ids,
+    )
     render_regeneration(target_app, target_module)
 
     render_editors()

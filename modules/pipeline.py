@@ -20,6 +20,7 @@ def generate_design(
     target_app: str,
     target_module: str,
     requirements_text: str,
+    expected_requirement_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any], float, str]:
     system_prompt = read_prompt("system_prompt.txt")
     user_template = read_prompt("full_design_prompt.txt")
@@ -33,7 +34,7 @@ def generate_design(
     raw = call_qwen_json(system_prompt, user_prompt)
     elapsed = time.perf_counter() - start
     result = normalize_result(raw)
-    validate_design_result(result)
+    validate_design_result(result, expected_requirement_ids)
     return result, elapsed, user_prompt
 
 
@@ -57,7 +58,40 @@ def regenerate_requirement(
     return result, elapsed, user_prompt
 
 
-def validate_design_result(result: dict[str, Any]) -> None:
+def validate_design_result(
+    result: dict[str, Any],
+    expected_requirement_ids: list[str] | None = None,
+) -> None:
+    if expected_requirement_ids:
+        generated_requirement_ids = [
+            row.get("requirement_id", "")
+            for row in result.get("requirements", [])
+            if row.get("requirement_id", "")
+        ]
+        generated_requirement_id_set = set(generated_requirement_ids)
+        missing_requirement_ids = [
+            requirement_id
+            for requirement_id in expected_requirement_ids
+            if requirement_id not in generated_requirement_id_set
+        ]
+        duplicate_requirement_ids = sorted(
+            {
+                requirement_id
+                for requirement_id in generated_requirement_ids
+                if generated_requirement_ids.count(requirement_id) > 1
+            }
+        )
+        if missing_requirement_ids:
+            raise LLMResponseError(
+                "Qwen response is incomplete: missing CSV requirement rows "
+                + ", ".join(missing_requirement_ids)
+            )
+        if duplicate_requirement_ids:
+            raise LLMResponseError(
+                "Qwen response duplicated CSV requirement rows "
+                + ", ".join(duplicate_requirement_ids)
+            )
+
     requirement_ids = {
         row.get("requirement_id", "")
         for row in result.get("requirements", [])

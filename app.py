@@ -43,6 +43,7 @@ def init_state() -> None:
 
 
 def csv_requirement_ids(df: pd.DataFrame) -> list[str]:
+    # CSV 的需求 ID 要原样进入追溯链，不能让 pandas 类型推断把 001 变成 1。
     normalized_columns = {str(column).strip().lower(): column for column in df.columns}
     id_column = None
     for candidate in ["req_id", "requirement_id", "id"]:
@@ -82,7 +83,8 @@ def uploaded_text(files: list[Any]) -> tuple[str, list[str]]:
         name = file.name.lower()
         data = file.getvalue()
         if name.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(data))
+            # dtype=str/keep_default_na=False 用于保留 CSV 单元格原始文本，避免 ID 前导零丢失。
+            df = pd.read_csv(io.BytesIO(data), dtype=str, keep_default_na=False)
             requirement_ids = csv_requirement_ids(df)
             expected_requirement_ids.extend(requirement_ids)
             parts.append(csv_prompt_block(file.name, df, requirement_ids))
@@ -176,12 +178,13 @@ def render_editors() -> None:
         ]
     )
     table_items = list(TABLE_COLUMNS.items())
+    # 继续使用 use_container_width=True，保证 requirements.txt 中的 Streamlit 1.35 也能运行。
     for tab, (key, columns) in zip(tabs[:6], table_items):
         with tab:
             edited = st.data_editor(
                 dataframe_for(result, key, columns),
                 num_rows="dynamic",
-                width='stretch',
+                use_container_width=True,
                 key=f"editor_{key}",
             )
             apply_table_edit(result, key, edited)
@@ -190,7 +193,7 @@ def render_editors() -> None:
         edited_model = st.data_editor(
             pd.DataFrame(result.get("white_box_model", []), columns=MODEL_COLUMNS).fillna(""),
             num_rows="dynamic",
-            width='stretch',
+            use_container_width=True,
             key="editor_white_box_model",
         )
         result["white_box_model"] = edited_model.fillna("").astype(str).to_dict(
@@ -203,13 +206,14 @@ def render_generation_controls(
     target_module: str,
     requirements: str,
     expected_requirement_ids: list[str] | None = None,
+    allow_extra_requirements: bool = True,
 ) -> None:
     st.subheader("生成区")
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
-        generate_clicked = st.button("生成测试设计", type="primary", width='stretch')
+        generate_clicked = st.button("生成测试设计", type="primary", use_container_width=True)
     with col2:
-        smoke_clicked = st.button("验证 Qwen 配置", width='stretch')
+        smoke_clicked = st.button("验证 Qwen 配置", use_container_width=True)
     with col3:
         try:
             st.info(f"当前模型：{model_name()}")
@@ -238,6 +242,7 @@ def render_generation_controls(
                 target_module,
                 requirements,
                 expected_requirement_ids=expected_requirement_ids,
+                allow_extra_requirements=allow_extra_requirements,
             )
             st.session_state.result = result
             st.session_state.original_result = copy.deepcopy(result)
@@ -347,7 +352,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_json_bytes(current),
             file_name="autotestdesign_artifact.json",
             mime="application/json",
-            width='stretch',
+            use_container_width=True,
             disabled=has_blocking_issues,
         )
     with col2:
@@ -356,7 +361,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_csv_zip_bytes(current),
             file_name="autotestdesign_csv.zip",
             mime="application/zip",
-            width='stretch',
+            use_container_width=True,
             disabled=has_blocking_issues,
         )
     with col3:
@@ -365,7 +370,7 @@ def render_exports(current: dict[str, Any], validation_issues: list[str]) -> Non
             result_to_excel_bytes(current),
             file_name="autotestdesign_artifact.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width='stretch',
+            use_container_width=True,
             disabled=has_blocking_issues,
         )
 
@@ -394,12 +399,14 @@ def main() -> None:
     )
     file_text, expected_requirement_ids = uploaded_text(files) if files else ("", [])
     requirements = "\n\n".join(part for part in [typed_requirements, file_text] if part)
+    allow_extra_requirements = bool(typed_requirements.strip())
 
     render_generation_controls(
         target_app,
         target_module,
         requirements,
         expected_requirement_ids,
+        allow_extra_requirements,
     )
     render_regeneration(target_app, target_module)
 
@@ -413,7 +420,7 @@ def main() -> None:
         evidence_df = pd.DataFrame(evidence)
         edited_evidence = st.data_editor(
             evidence_df,
-            width='stretch',
+            use_container_width=True,
             num_rows="fixed",
             disabled=[
                 "evidence_key",

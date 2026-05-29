@@ -94,6 +94,7 @@ Rules:
 - Every coverage_item_id must have at least one matching strategy row.
 - Every strategy_id must have at least one matching test case.
 - Include at least three black-box techniques: Equivalence Partitioning, Boundary Value Analysis, and Decision Table.
+- For these three mandatory black-box techniques, use the exact English names in test_cases.technique and strategies.technique.
 - Include at least one lightweight white-box or state/control-flow modeling item.
 - Generate enough rows to demonstrate usefulness, but keep the output concise: total test_cases should be between 6 and 10.
 - Prefer one risk row per requirement, one or two coverage items per requirement, and compact step text.

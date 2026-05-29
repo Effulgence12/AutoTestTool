@@ -10,6 +10,33 @@ from .schema import normalize_result
 
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts"
+BLACK_BOX_TECHNIQUE_ALIASES = {
+    "Equivalence Partitioning": [
+        "equivalence",
+        "equivalence partitioning",
+        "equivalence class partitioning",
+        "ep",
+        "等价类划分",
+        "等价划分",
+        "等价类",
+    ],
+    "Boundary Value Analysis": [
+        "boundary",
+        "boundary value",
+        "boundary value analysis",
+        "bva",
+        "边界值分析",
+        "边界值",
+    ],
+    "Decision Table": [
+        "decision",
+        "decision table",
+        "decision table testing",
+        "dt",
+        "决策表",
+        "判定表",
+    ],
+}
 
 
 def read_prompt(name: str) -> str:
@@ -21,6 +48,7 @@ def generate_design(
     target_module: str,
     requirements_text: str,
     expected_requirement_ids: list[str] | None = None,
+    allow_extra_requirements: bool = True,
 ) -> tuple[dict[str, Any], float, str]:
     system_prompt = read_prompt("system_prompt.txt")
     user_template = read_prompt("full_design_prompt.txt")
@@ -34,7 +62,7 @@ def generate_design(
     raw = call_qwen_json(system_prompt, user_prompt)
     elapsed = time.perf_counter() - start
     result = normalize_result(raw)
-    validate_design_result(result, expected_requirement_ids)
+    validate_design_result(result, expected_requirement_ids, allow_extra_requirements)
     return result, elapsed, user_prompt
 
 
@@ -61,19 +89,38 @@ def regenerate_requirement(
 def validate_design_result(
     result: dict[str, Any],
     expected_requirement_ids: list[str] | None = None,
+    allow_extra_requirements: bool = True,
 ) -> None:
     if expected_requirement_ids:
+        # CSV-only 输入必须逐行一一对应，不能让模型额外编造或遗漏需求。
+        duplicate_expected_ids = sorted(
+            {
+                requirement_id
+                for requirement_id in expected_requirement_ids
+                if expected_requirement_ids.count(requirement_id) > 1
+            }
+        )
+        if duplicate_expected_ids:
+            raise LLMResponseError(
+                "CSV input contains duplicated requirement IDs "
+                + ", ".join(duplicate_expected_ids)
+            )
+
         generated_requirement_ids = [
             row.get("requirement_id", "")
             for row in result.get("requirements", [])
             if row.get("requirement_id", "")
         ]
         generated_requirement_id_set = set(generated_requirement_ids)
+        expected_requirement_id_set = set(expected_requirement_ids)
         missing_requirement_ids = [
             requirement_id
             for requirement_id in expected_requirement_ids
             if requirement_id not in generated_requirement_id_set
         ]
+        extra_requirement_ids = sorted(
+            generated_requirement_id_set - expected_requirement_id_set
+        )
         duplicate_requirement_ids = sorted(
             {
                 requirement_id
@@ -90,6 +137,11 @@ def validate_design_result(
             raise LLMResponseError(
                 "Qwen response duplicated CSV requirement rows "
                 + ", ".join(duplicate_requirement_ids)
+            )
+        if extra_requirement_ids and not allow_extra_requirements:
+            raise LLMResponseError(
+                "Qwen response generated extra requirements not present in CSV "
+                + ", ".join(extra_requirement_ids)
             )
 
     requirement_ids = {
@@ -109,22 +161,31 @@ def validate_design_result(
             + ", ".join(missing_risks)
         )
 
-    techniques = " | ".join(
-        row.get("technique", "") for row in result.get("test_cases", [])
-    ).lower()
-    required_markers = [
-        "equivalence",
-        "boundary",
-        "decision",
-    ]
+    detected_techniques = detect_black_box_techniques(result)
     missing_techniques = [
-        marker for marker in required_markers if marker not in techniques
+        technique
+        for technique in BLACK_BOX_TECHNIQUE_ALIASES
+        if technique not in detected_techniques
     ]
     if missing_techniques:
         raise LLMResponseError(
             "Qwen response is incomplete: missing required black-box techniques "
             + ", ".join(missing_techniques)
         )
+
+
+def detect_black_box_techniques(result: dict[str, Any]) -> set[str]:
+    # 模型可能用中文、英文或缩写；同时检查策略表和用例表，避免误杀有效输出。
+    technique_text = " | ".join(
+        row.get("technique", "")
+        for table_name in ["strategies", "test_cases"]
+        for row in result.get(table_name, [])
+    ).lower()
+    detected: set[str] = set()
+    for canonical_name, aliases in BLACK_BOX_TECHNIQUE_ALIASES.items():
+        if any(alias.lower() in technique_text for alias in aliases):
+            detected.add(canonical_name)
+    return detected
 
 
 def build_improvement_evidence(

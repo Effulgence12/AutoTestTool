@@ -7,4 +7,5 @@ Regenerate test design content only for this requirement row:
 Return the same full JSON schema as the main design prompt, but include only rows directly related to this requirement.
 The regenerated requirement must have exactly one risk row, at least one coverage item, at least one strategy, at least one test case, and complete traceability.
 You must still include risks, coverage_items, strategies, test_cases, traceability, white_box_model, optimization_summary, and result_analysis.
+Use exact English technique names when applicable: Equivalence Partitioning, Boundary Value Analysis, Decision Table.
 Use real test design reasoning and return JSON only.

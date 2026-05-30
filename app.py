@@ -18,6 +18,7 @@ from modules.pipeline import (
     generate_design,
     regenerate_requirement,
 )
+from modules.rule_engine import test_case_sort_key
 from modules.schema import MODEL_COLUMNS, TABLE_COLUMNS, empty_result, normalize_result
 
 
@@ -94,7 +95,11 @@ def uploaded_text(files: list[Any]) -> tuple[str, list[str]]:
 
 
 def dataframe_for(result: dict[str, Any], key: str, columns: list[str]) -> pd.DataFrame:
-    return pd.DataFrame(result.get(key, []), columns=columns).fillna("")
+    rows = result.get(key, [])
+    if key == "test_cases":
+        # 中文说明：测试用例表按 TC 编号展示；推荐执行顺序由 optimization_rank 单独表达。
+        rows = sorted(rows, key=test_case_sort_key)
+    return pd.DataFrame(rows, columns=columns).fillna("")
 
 
 def apply_table_edit(result: dict[str, Any], key: str, edited: pd.DataFrame) -> None:
@@ -331,6 +336,13 @@ def merge_partial_result(base: dict[str, Any], partial: dict[str, Any]) -> dict[
         if row.get("requirement_id", "") not in partial_req_ids
     ] + partial.get("traceability", [])
     merged["white_box_model"] = partial.get("white_box_model", merged.get("white_box_model", []))
+    merged["rule_suggestions"] = partial.get("rule_suggestions", merged.get("rule_suggestions", []))
+    merged["state_model"] = partial.get("state_model", merged.get("state_model", []))
+    merged["state_sequences"] = partial.get("state_sequences", merged.get("state_sequences", []))
+    merged["generated_pytest"] = partial.get("generated_pytest", merged.get("generated_pytest", ""))
+    merged["generated_selenium"] = partial.get(
+        "generated_selenium", merged.get("generated_selenium", "")
+    )
     merged["optimization_summary"] = partial.get(
         "optimization_summary", merged.get("optimization_summary", "")
     )

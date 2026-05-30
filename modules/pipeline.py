@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .llm_client import LLMResponseError, call_qwen_json
+from .rule_engine import enrich_with_rule_engine
+from .script_generator import add_generated_scripts
 from .schema import normalize_result
 
 
@@ -62,6 +64,8 @@ def generate_design(
     raw = call_qwen_json(system_prompt, user_prompt)
     elapsed = time.perf_counter() - start
     result = normalize_result(raw)
+    result = enrich_with_rule_engine(result)
+    result = add_generated_scripts(result)
     validate_design_result(result, expected_requirement_ids, allow_extra_requirements)
     return result, elapsed, user_prompt
 
@@ -82,6 +86,8 @@ def regenerate_requirement(
     raw = call_qwen_json(system_prompt, user_prompt)
     elapsed = time.perf_counter() - start
     result = normalize_result(raw)
+    result = enrich_with_rule_engine(result)
+    result = add_generated_scripts(result)
     validate_design_result(result)
     return result, elapsed, user_prompt
 
@@ -159,6 +165,40 @@ def validate_design_result(
         raise LLMResponseError(
             "Qwen response is incomplete: missing risk rows for "
             + ", ".join(missing_risks)
+        )
+
+    coverage_item_ids = {
+        row.get("coverage_item_id", "")
+        for row in result.get("coverage_items", [])
+        if row.get("coverage_item_id", "")
+    }
+    strategy_coverage_ids = {
+        row.get("coverage_item_id", "")
+        for row in result.get("strategies", [])
+        if row.get("coverage_item_id", "")
+    }
+    missing_strategy_ids = sorted(coverage_item_ids - strategy_coverage_ids)
+    if missing_strategy_ids:
+        raise LLMResponseError(
+            "Qwen response is incomplete: missing strategy rows for coverage items "
+            + ", ".join(missing_strategy_ids)
+        )
+
+    strategy_ids = {
+        row.get("strategy_id", "")
+        for row in result.get("strategies", [])
+        if row.get("strategy_id", "")
+    }
+    test_case_strategy_ids = {
+        row.get("strategy_id", "")
+        for row in result.get("test_cases", [])
+        if row.get("strategy_id", "")
+    }
+    missing_test_case_ids = sorted(strategy_ids - test_case_strategy_ids)
+    if missing_test_case_ids:
+        raise LLMResponseError(
+            "Qwen response is incomplete: missing test cases for strategies "
+            + ", ".join(missing_test_case_ids)
         )
 
     detected_techniques = detect_black_box_techniques(result)

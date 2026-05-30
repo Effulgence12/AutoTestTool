@@ -38,12 +38,40 @@ TABLE_COLUMNS = {
         "expected_result",
         "priority",
         "risk_score",
+        "source",
+        "optimization_rank",
+        "optimization_reason",
     ],
     "traceability": [
         "requirement_id",
         "coverage_item_id",
         "strategy_id",
         "test_case_id",
+    ],
+    "rule_suggestions": [
+        "suggestion_id",
+        "requirement_id",
+        "field",
+        "boundary_value",
+        "source_rule",
+        "rationale",
+        "status",
+    ],
+    "state_model": [
+        "transition_id",
+        "requirement_id",
+        "state_name",
+        "event",
+        "condition",
+        "next_state",
+        "expected_action",
+    ],
+    "state_sequences": [
+        "sequence_id",
+        "coverage_criterion",
+        "sequence",
+        "covered_transitions",
+        "rationale",
     ],
 }
 
@@ -65,7 +93,12 @@ RESULT_KEYS = [
     "strategies",
     "test_cases",
     "traceability",
+    "rule_suggestions",
+    "state_model",
+    "state_sequences",
     "white_box_model",
+    "generated_pytest",
+    "generated_selenium",
     "optimization_summary",
     "result_analysis",
 ]
@@ -101,6 +134,8 @@ def normalize_result(raw: dict[str, Any]) -> dict[str, Any]:
     result["white_box_model"] = normalize_rows(
         result.get("white_box_model"), MODEL_COLUMNS
     )
+    result["generated_pytest"] = _stringify(result.get("generated_pytest", ""))
+    result["generated_selenium"] = _stringify(result.get("generated_selenium", ""))
     result["optimization_summary"] = _stringify(result.get("optimization_summary", ""))
     result["result_analysis"] = _stringify(result.get("result_analysis", ""))
     return result
@@ -115,7 +150,12 @@ def empty_result() -> dict[str, Any]:
         "strategies": [],
         "test_cases": [],
         "traceability": [],
+        "rule_suggestions": [],
+        "state_model": [],
+        "state_sequences": [],
         "white_box_model": [],
+        "generated_pytest": "",
+        "generated_selenium": "",
         "optimization_summary": "",
         "result_analysis": "",
     }

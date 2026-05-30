@@ -35,6 +35,14 @@ def result_to_excel_bytes(result: dict[str, Any]) -> bytes:
         pd.DataFrame(result.get("improvement_evidence", [])).to_excel(
             writer, index=False, sheet_name="improvement"
         )
+        pd.DataFrame(
+            [
+                {
+                    "generated_pytest": result.get("generated_pytest", ""),
+                    "generated_selenium": result.get("generated_selenium", ""),
+                }
+            ]
+        ).to_excel(writer, index=False, sheet_name="generated_scripts")
     return buffer.getvalue()
 
 
@@ -61,5 +69,9 @@ def result_to_csv_zip_bytes(result: dict[str, Any]) -> bytes:
         archive.writestr(
             "improvement_evidence.csv",
             pd.DataFrame(result.get("improvement_evidence", [])).to_csv(index=False),
+        )
+        archive.writestr("generated_tests.py", result.get("generated_pytest", ""))
+        archive.writestr(
+            "generated_selenium_template.py", result.get("generated_selenium", "")
         )
     return buffer.getvalue()

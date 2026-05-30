@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .fast_generator import generate_fast_result
 from .llm_client import LLMResponseError, call_qwen_json
 from .rule_engine import enrich_with_rule_engine
 from .script_generator import add_generated_scripts
@@ -51,7 +52,22 @@ def generate_design(
     requirements_text: str,
     expected_requirement_ids: list[str] | None = None,
     allow_extra_requirements: bool = True,
+    generation_mode: str = "ai_enhanced",
 ) -> tuple[dict[str, Any], float, str]:
+    if generation_mode == "fast":
+        start = time.perf_counter()
+        result = generate_fast_result(target_app, target_module, requirements_text)
+        result = enrich_with_rule_engine(result)
+        result = add_generated_scripts(result)
+        validate_design_result(result, expected_requirement_ids, allow_extra_requirements)
+        elapsed = time.perf_counter() - start
+        prompt_record = (
+            "Fast Rule-Based Mode: no remote LLM prompt was sent. "
+            "The tool parsed requirements locally, applied risk heuristics, "
+            "generated EP/BVA/DT cases, repaired traceability, and ranked the suite."
+        )
+        return result, elapsed, prompt_record
+
     system_prompt = read_prompt("system_prompt.txt")
     user_template = read_prompt("full_design_prompt.txt")
     user_prompt = user_template.format(

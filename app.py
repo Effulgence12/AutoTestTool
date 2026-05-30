@@ -32,6 +32,7 @@ def init_state() -> None:
         "last_prompt": "",
         "last_elapsed": None,
         "last_model": "",
+        "last_generation_mode": "",
         "last_error": "",
         "smoke_result": "",
         "optimization_summary_text": "",
@@ -214,16 +215,36 @@ def render_generation_controls(
     allow_extra_requirements: bool = True,
 ) -> None:
     st.subheader("生成区")
+    mode_label = st.radio(
+        "生成模式",
+        [
+            "Fast Rule-Based",
+            "AI Enhanced",
+        ],
+        horizontal=True,
+        help=(
+            "Fast 模式不调用远程模型，使用本地规则生成结构化需求、风险、EP/BVA/DT 用例和优化排序；"
+            "AI Enhanced 模式保留原有 Qwen 生成能力，并继续使用本地规则补强。"
+        ),
+    )
+    generation_mode = "fast" if mode_label.startswith("Fast") else "ai_enhanced"
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
         generate_clicked = st.button("生成测试设计", type="primary", use_container_width=True)
     with col2:
-        smoke_clicked = st.button("验证 Qwen 配置", use_container_width=True)
+        smoke_clicked = st.button(
+            "验证 Qwen 配置",
+            use_container_width=True,
+            disabled=generation_mode == "fast",
+        )
     with col3:
-        try:
-            st.info(f"当前模型：{model_name()}")
-        except Exception as exc:
-            st.warning(f"模型配置未就绪：{exc}")
+        if generation_mode == "fast":
+            st.info("当前引擎：Local Fast Rule-Based（不调用 Qwen）")
+        else:
+            try:
+                st.info(f"当前模型：{model_name()}")
+            except Exception as exc:
+                st.warning(f"模型配置未就绪：{exc}")
 
     if smoke_clicked:
         try:
@@ -248,12 +269,18 @@ def render_generation_controls(
                 requirements,
                 expected_requirement_ids=expected_requirement_ids,
                 allow_extra_requirements=allow_extra_requirements,
+                generation_mode=generation_mode,
             )
             st.session_state.result = result
             st.session_state.original_result = copy.deepcopy(result)
             st.session_state.last_prompt = prompt
             st.session_state.last_elapsed = elapsed
-            st.session_state.last_model = model_name()
+            st.session_state.last_generation_mode = generation_mode
+            st.session_state.last_model = (
+                "Local Fast Rule-Based"
+                if generation_mode == "fast"
+                else model_name()
+            )
             st.session_state.last_error = ""
             st.session_state.optimization_summary_text = result.get(
                 "optimization_summary", ""
@@ -264,7 +291,7 @@ def render_generation_controls(
 
     if st.session_state.last_elapsed is not None:
         st.success(
-            f"生成成功。模型：{st.session_state.last_model}；耗时：{st.session_state.last_elapsed:.2f} 秒。"
+            f"生成成功。引擎：{st.session_state.last_model}；耗时：{st.session_state.last_elapsed:.2f} 秒。"
         )
     if st.session_state.last_error:
         st.error(st.session_state.last_error)
